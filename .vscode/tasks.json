@@ -3,9 +3,9 @@
     "tasks": [
         {
             "label": "Build Plugin",
-            "command": "rojo build -o \"${localappdata}/Roblox/Plugins/Plugin.rbxm\"",
-            "type": "process",
-            "args": ["${env:localappdata}"],
+            "command": "rojo build -o \"${env:LocalAppData}/Roblox/Plugins/Plugin.rbxm\"",
+            "type": "shell",
+            "args": [],
             "presentation": {
                 "reveal": "always"
             },
