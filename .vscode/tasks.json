@@ -1,0 +1,15 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Build Plugin",
+            "command": "rojo build -o \"${localappdata}/Roblox/Plugins/Plugin.rbxm\"",
+            "type": "process",
+            "args": ["${env:localappdata}"],
+            "presentation": {
+                "reveal": "always"
+            },
+            "group": "build"
+        }
+    ]
+}
