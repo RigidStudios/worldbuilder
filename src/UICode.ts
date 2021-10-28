@@ -35,6 +35,11 @@ export class ElementEffects {
         });
     }
 
+    static visibleText(back: Color3) {
+        let [r, g, b] = [back.R * 255, back.G * 255, back.B * 255];
+        return (1 - (0.299 * r + 0.587 * g + 0.114 * b) / 255) < 0.5 ? new Color3(0,0,0) : new Color3(1,1,1);
+    }
+
     preHover(instance: GuiObject, subInstance: Frame) {
         (instance as Frame).Active = true;
         (instance as Frame).MouseEnter.Connect(() => subInstance.SetAttribute('Hover', true));

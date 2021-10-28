@@ -1,19 +1,58 @@
 /// <reference types="@rbxts/types/plugin" />
 
 import { RunService, TextService, UserInputService, Workspace } from "@rbxts/services";
+import { Data, Label } from "Data";
+import { MainMenu } from "MainMenu";
 import { ElementEffects } from "UICode";
 
-export {};
+const toolbar = plugin.CreateToolbar("Worldbuilder");
+const button = toolbar.CreateButton("Quick Enable", "", "");
 
-const toolbar = plugin.CreateToolbar("MyToolbar");
-const button = toolbar.CreateButton("MyButton", "", "");
+function createUI() {
+	const widgetInfo = new DockWidgetPluginGuiInfo(
+		Enum.InitialDockState.Right,
+		true,
+		true,
+		100,
+		100,
+		100,
+		100
 
-const labels: Label[] = []
+	);
+	return plugin.CreateDockWidgetPluginGui('worldbuilder', widgetInfo);
+}
 
+const data = new Data();
+const menu = new MainMenu(createUI(), plugin, data);
+
+export const labels: Label[] = []
+
+let lockedChildren: BasePart[] = [];
 let enabled = false;
 button.Click.Connect(() => {
 	enabled = !enabled;
 	// TODO: hide/show labels.
+	labels.forEach(v => {
+		if (enabled) {
+			v.ui.Enabled = true;
+		} else {
+			v.ui.Enabled = false;
+		}
+	});
+
+	if (enabled) {
+		game.Workspace.GetDescendants().forEach(v => {
+			if (v.IsA('BasePart') && !v.Locked) {
+				lockedChildren.push(v);
+				v.Locked = true;
+			}
+		});
+	} else {
+		lockedChildren.forEach((v) => {
+			v.Locked = false;
+		});
+		lockedChildren = [];
+	}
 });
 
 type ExpansionParameter<T> = {
@@ -62,15 +101,17 @@ function runMod(instance: CombinedUI, prop: string, func: () => void, lerp = tru
 
 const Selection = game.GetService('Selection');
 
-let selHas = () => {for (let [i, v] of pairs(Selection.Get())) {
-	if (!v.IsA('BasePart')) return false;
-} return true; }
-Selection.SelectionChanged.Connect(() => { if (enabled && selHas()) Selection.Set([]) });
+// let selHas = () => {for (let [i, v] of pairs(Selection.Get())) {
+// 	if (!v.IsA('BasePart')) return false;
+// } return true; }
+// Selection.SelectionChanged.Connect(() => { if (enabled && selHas()) Selection.Set([]) });
+
+const theme = settings().Studio.Theme
 
 const verticalLabelSize = 34;
 const padding = 3;
 function createLabel(p: Vector3, titleText?: string) {
-	let c = BrickColor.random().Color;
+	let c = Color3.fromHSV(math.random(), 1, 1);
 	// TODO: Use first sub-label color instead of random.
 
 	let holder = new Instance('Part');
@@ -79,14 +120,23 @@ function createLabel(p: Vector3, titleText?: string) {
 	holder.Transparency = 1;
 	holder.Locked = true;
 
-
 	let largeFrame = new Instance('BillboardGui');
 	largeFrame.AlwaysOnTop = true;
-	largeFrame.Parent = game.GetService('StarterGui');
+	// TODO: Change back to CoreGui after development.
+	largeFrame.Parent = game.GetService('CoreGui');
 	largeFrame.Adornee = holder;
 	largeFrame.Size = new UDim2(0,verticalLabelSize - 10,0,verticalLabelSize - 10);
 	largeFrame.Active = true;
 
+	let label = {
+		labels: [...data.defaultLabels],
+		title: '',
+		text: '',
+		position: p,
+		Color: c,
+		instance: holder,
+		ui: largeFrame
+	};
 
 	let mainFrame = new Instance('Frame');
 	mainFrame.Parent = largeFrame;
@@ -96,6 +146,12 @@ function createLabel(p: Vector3, titleText?: string) {
 	largeFrame.SetAttribute('hasFocus', true);
 
 	let i = 0;
+
+	mainFrame.InputEnded.Connect((inp) => {
+		if (inp.UserInputType === Enum.UserInputType.MouseButton1) {
+			menu.editLabel(label);
+		}
+	})
 
 	Elements.preHover(mainFrame, mainFrame);
 	Elements.hover({
@@ -116,7 +172,8 @@ function createLabel(p: Vector3, titleText?: string) {
 					title.Text,
 					21, Enum.Font.SourceSansLight,
 					new Vector2(1000, 10)
-					).X + verticalLabelSize + 24
+					).X + verticalLabelSize + 24,
+
 				),
 				0,
 				(i > 40 || largeFrame.GetAttribute('hasFocus')) ? 120 : verticalLabelSize
@@ -173,6 +230,7 @@ function createLabel(p: Vector3, titleText?: string) {
 		i = 0;
 		largeFrame.SetAttribute('hasFocus', false);
 		title.SetAttribute('hasFocus', false);
+		data.changeLabel(label, 'name', title.Text);
 	});
 	title.Focused.Connect(() => {
 		i += 1;
@@ -232,6 +290,7 @@ function createLabel(p: Vector3, titleText?: string) {
 	scroller.ScrollBarThickness = 0;
 	scroller.ScrollingDirection = Enum.ScrollingDirection.X;
 	// scroller.ClipsDescendants = true;
+	scroller.AutomaticSize = Enum.AutomaticSize.X;
 	scroller.CanvasSize = new UDim2(2,0,1,0);
 
 	let list = new Instance('UIListLayout');
@@ -255,17 +314,26 @@ function createLabel(p: Vector3, titleText?: string) {
 		}
 	});
 
-	([ ['todo', new Color3(.7, 0, .9)], ['task', new Color3(.2, 0, .7)] ] as [string, Color3][]).forEach(([n, c]) => {
-		let lab = new Instance('TextLabel');
-		lab.Parent = scroller;
-		lab.Size = new UDim2(0, 32, 1, -3);
-		lab.Text = n;
-		lab.BackgroundColor3 = c;
+	let w = () => {
+		scroller.GetChildren().forEach(v => { if (v.IsA('TextLabel')) v.Destroy(); })
+		data.infoLabels.filter(v => label.labels.includes(v.name)).forEach((v) => {
+			let lab = new Instance('TextLabel');
+			lab.Parent = scroller;
+			lab.Text = v.name.lower();
+			lab.Size = new UDim2(0, math.max(32, TextService.GetTextSize(lab.Text, 9, Enum.Font.Arial, new Vector2(200, 100)).X), 1, -3);
+			lab.TextColor3 = ElementEffects.visibleText(v.color);
+			lab.BackgroundColor3 = v.color;
+			lab.TextSize = 9;
 
-		uiCorner = new Instance('UICorner');
-		uiCorner.CornerRadius = new UDim(.8);
-		uiCorner.Parent = lab;
-	});
+			uiCorner = new Instance('UICorner');
+			uiCorner.CornerRadius = new UDim(.8);
+			uiCorner.Parent = lab;
+		});
+	}
+
+	data.labelChanged(label, t => { if (t === 'labels') {w()} });
+	data.infoLabelChanged(() => { w() });
+	w();
 
 	uiCorner = new Instance('UICorner');
 	uiCorner.CornerRadius = new UDim(.8);
@@ -278,15 +346,12 @@ function createLabel(p: Vector3, titleText?: string) {
 	uiPadding.PaddingRight = new UDim(0, 0);
 	uiPadding.Parent = scroller;
 
-	labels.push({
-		labels: [],
-		title: '',
-		text: '',
-		position: p,
-		Color: c,
-		instance: holder
-	});
+	label.title = ''
+
+	labels.push(label);
 }
+
+
 
 let mouse = plugin.GetMouse();
 UserInputService.InputBegan.Connect((input) => {
@@ -302,18 +367,4 @@ UserInputService.InputBegan.Connect((input) => {
 
 
 
-type DataLabel = {
-	labels: string[],
-	text: string,
-	position: Vector3
-}
-
-type Label = {
-	labels: string[],
-	title: string,
-	text: string,
-	position: Vector3,
-	Color: Color3,
-	instance: Part
-}
 
