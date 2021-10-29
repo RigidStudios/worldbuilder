@@ -1,4 +1,4 @@
-import { labels } from "index.client";
+import { HttpService, ServerStorage } from "@rbxts/services";
 
 type DataLabel = {
 	labels: string[],
@@ -24,8 +24,10 @@ export type Label = {
 type LabelUpdate = 'labels'|'name'|'color';
 type InfoLabelUpdate = 'add'|'remove'|'change';
 
+export const labels: Label[] = []
 
 export class Data {
+    constructor(public plugin: Plugin) {};
     infoLabels: InfoLabel[] = [ { name: 'todo', color: new Color3(.7, 0, .9) }, { name: 'task', color: new Color3(.2, 0, .7) }, { name: 'wip', color: new Color3(.7, .3, 0) } ];
     defaultLabels: string[] = [ 'task' ];
 
@@ -117,5 +119,39 @@ export class Data {
 
                 break;
         }
+    }
+
+    storeVersion = '1';
+    storeConverter() {} // TODO: Convert from old versions to new versions of storage.
+    saveEverything() {
+        let PluginStorage = ServerStorage.FindFirstChild('worldbuilder_storage');
+        let LabelStorage = PluginStorage?.FindFirstChild('labels');
+        let LabelStore: StringValue = LabelStorage?.FindFirstChild(`main${this.storeVersion}`) as StringValue;
+        let BackupStore: StringValue = LabelStorage?.FindFirstChild(`main${this.storeVersion}-b`) as StringValue;
+        if (!PluginStorage) {
+            PluginStorage = new Instance('Folder');
+            PluginStorage.Parent = ServerStorage;
+            PluginStorage.Name = 'worldbuilder_storage';
+
+            LabelStorage = new Instance('Folder');
+            LabelStorage.Parent = PluginStorage;
+            LabelStorage.Name = 'labels';
+
+            LabelStore = new Instance('StringValue');
+            LabelStore.Parent = LabelStorage;
+            LabelStore.Name = `main${this.storeVersion}`;
+            LabelStore.Value = HttpService.GenerateGUID(true);
+
+            BackupStore = new Instance('StringValue');
+            BackupStore.Parent = LabelStorage;
+            BackupStore.Name = `main${this.storeVersion}-b`;
+
+            // TODO: Figure out what to do with the backup store.
+        }
+        
+    }
+
+    loadLabels() {
+
     }
 }

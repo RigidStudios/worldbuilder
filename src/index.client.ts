@@ -1,7 +1,7 @@
 /// <reference types="@rbxts/types/plugin" />
 
 import { RunService, TextService, UserInputService, Workspace } from "@rbxts/services";
-import { Data, Label } from "Data";
+import { Data, Label, labels } from "Data";
 import { MainMenu } from "MainMenu";
 import { ElementEffects } from "UICode";
 
@@ -17,7 +17,6 @@ function createUI() {
 		100,
 		100,
 		100
-
 	);
 	return plugin.CreateDockWidgetPluginGui('worldbuilder', widgetInfo);
 }
@@ -25,7 +24,7 @@ function createUI() {
 const data = new Data();
 const menu = new MainMenu(createUI(), plugin, data);
 
-export const labels: Label[] = []
+
 
 let lockedChildren: BasePart[] = [];
 let enabled = false;
@@ -110,10 +109,7 @@ const theme = settings().Studio.Theme
 
 const verticalLabelSize = 34;
 const padding = 3;
-function createLabel(p: Vector3, titleText?: string) {
-	let c = Color3.fromHSV(math.random(), 1, 1);
-	// TODO: Use first sub-label color instead of random.
-
+function createLabel(p: Vector3, col: Color3 = Color3.fromHSV(math.random(), 1, 1), labs?: string[]) {
 	let holder = new Instance('Part');
 	holder.Position = p;
 	holder.Parent = Workspace;
@@ -129,11 +125,11 @@ function createLabel(p: Vector3, titleText?: string) {
 	largeFrame.Active = true;
 
 	let label = {
-		labels: [...data.defaultLabels],
+		labels: labs || [...data.defaultLabels],
 		title: '',
 		text: '',
 		position: p,
-		Color: c,
+		Color: col,
 		instance: holder,
 		ui: largeFrame
 	};
@@ -197,7 +193,7 @@ function createLabel(p: Vector3, titleText?: string) {
 	uiPadding.Parent = mainFrame;
 
 	let color = new Instance('Frame');
-	color.BackgroundColor3 = c;
+	color.BackgroundColor3 = col;
 	color.Size = new UDim2(1,0,0,verticalLabelSize - padding * 2);
 	color.Parent = mainFrame;
 
@@ -360,7 +356,7 @@ UserInputService.InputBegan.Connect((input) => {
 		print('yes.')
 		if (UserInputService.IsKeyDown(Enum.KeyCode.LeftControl)) {
 			print('creating.')
-			createLabel(h.Position);
+			createLabel(h.Position, undefined, undefined);
 		}
 	}
 });
